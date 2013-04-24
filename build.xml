@@ -1,0 +1,50 @@
+<project name="Rad" basedir="." default="compile_client">
+	
+	<taskdef resource="net/sf/antcontrib/antcontrib.properties">
+	  <classpath>
+	    <pathelement location="${basedir}/util/ant-contrib-1.0b3.jar"/>
+	  </classpath>
+	</taskdef>
+
+	<taskdef resource="com/googlecode/jslint4java/antlib.xml">
+		<classpath>
+	    <pathelement location="${basedir}/util/jslint4java-2.0.2.jar"/>
+	  </classpath>
+	</taskdef>
+	
+	<target name="compile_client">
+		
+		<echo>Compiling rad.js</echo>
+
+		<concat destfile="build/client/rad.js" outputencoding="UTF-8">
+			<filelist dir="${basedir}/src/" files="main.js"/>
+			<filelist dir="${basedir}/src/core/" files="Class.js,RadClass.js"/>
+			<filelist dir="${basedir}/src/event/" files="Event.js, EventDispatcher.js, CollectionEvent.js, ChangeEvent.js, PropertyChangeEvent.js"/>
+			<filelist dir="${basedir}/src/model/" files="Model.js, CachableModel.js"/>
+			<filelist dir="${basedir}/src/collection/" files="Collection.js"/>
+			<!--
+			<fileset dir="${basedir}/src/util/">
+				 <include name="**/*.js"/>	
+			</fileset>
+			-->
+			<filelist dir="${basedir}/src/" files="close.js"/>
+		</concat>
+		<!-- 
+		<concat destfile="build/client/frodo.css">
+			<fileset dir="${basedir}/css">
+				 <include name="**/*.css"/>	
+			</fileset>
+		</concat>
+		-->
+	</target>
+	<!-- add node compile -->
+	<target name="compile_node" depends="compile_client">
+		<echo>Compiling Node</echo>
+		<concat destfile="build/node/radNode.js" outputencoding="UTF-8">
+			<filelist dir="build/client/" files="rad.js"/>
+		</concat>	
+	</target>
+	
+</project>
+
+	
