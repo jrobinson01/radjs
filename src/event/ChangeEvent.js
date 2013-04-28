@@ -3,10 +3,10 @@ pkg.ChangeEvent = pkg.Event.extend({
 	
 	_className:"ChangeEvent",
 	name:"Change",
-	model:null,
+	data:null,//the object that changed
 	
-	init:function(model) {
+	init:function(data) {
 		this._super();
-		this.model = model;
+		this.data = data;
 	}
 });

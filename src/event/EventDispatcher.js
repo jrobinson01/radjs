@@ -6,30 +6,67 @@ pkg.EventDispatcher = rad.core.RadClass.extend({
 	
 	_className:"EventDispatcher",
 	_eventListeners:{},
+	_debug:true,
 	
 	init:function() {
 		this._super();
 		this._eventListeners={};
 	},
 	
+	//eventName can be a single string (ex: Collection.add, Change, etc)
+	//or a list of events (ex: "Collection.add Collection.remove")
 	addListener:function(eventName, handler, scope) {
-		if(this._eventListeners[eventName] == undefined) {
-			this._eventListeners[eventName] = [];
-		}
-		//deal with missing scope/handler here (especially handler)!?
-		this._eventListeners[eventName].push({scope:scope, handler:handler});
+		var names = this._parseEventName(eventName);
+		var n;
+		for(var i=0; i<names.length; i++) {
+			n = names[i];
+			//loop and add listeners for each name
+			if(this._eventListeners[n] == undefined) {
+				this._eventListeners[n] = [];
+			}
+			//deal with missing scope/handler here (especially handler)!?
+			this._eventListeners[n].push({scope:scope, handler:handler});
+			}
 		return this;
 	},
 	
+	
 	removeListener:function(eventName, handler, scope){
-		var el = this._eventListeners[eventName];
-		if( el !== undefined) { 
-			for(var i=0; i<el.length; i++) {
-				if(el[i].scope == scope && el[i].handler == handler) {
-					el.splice(i,1);
-					break;
+		
+		if(eventName === null || eventName === undefined) {
+			if(handler === null || handler === undefined) {
+				if(scope !== null && scope !== undefined) {
+					//if both eventName and handler are null but scope is not, remove ALL listeners
+					// for the scope object.
+					this.log("scope is not null, removing all listeners for scope:", scope, this._eventListeners);
+					for(var i in this._eventListeners) {
+						for(var a=this._eventListeners[i].length-1; a>=0; a--) {
+							
+							this.log("removing:", i, a, this._eventListeners[i][a].scope);
+							this.removeListener(i, this._eventListeners[i][a].handler, this._eventListeners[i][a].scope);
+						}
+					}
+					return this;
+				} else {
+					return this;//not much to do here
 				}
 			}
+		}
+		var names = this._parseEventName(eventName);
+		var n;
+		for(var i=0; i<names.length; i++) {
+			n = eventName[i];
+		if(n !== null && n !== undefined) {
+			var el = this._eventListeners[n];
+			if( el !== undefined) { 
+				for(var i=0; i<el.length; i++) {
+					if(el[i].scope == scope && el[i].handler == handler) {
+						el.splice(i,1);
+						break;
+					}
+				}
+			}
+		}
 		}
 		return this;
 	},
@@ -61,11 +98,20 @@ pkg.EventDispatcher = rad.core.RadClass.extend({
 					}
 				}
 			}
-			//event.destroy();//egad. I wonder if events will get GC'd??
+			//event.destroy();//egad. this results in the event not being populated.
+			//TODO: investigate what cases would causes events to not get GC'd!
 			return this;
 		} else {
 			throw new Error("invalid event passed to _dispatch");
 		}
+	},
+	
+	_parseEventName:function(eventName) {
+		var names = [];
+		if(typeof eventName == "string") {
+			names = eventName.split(" ");
+		}
+		return names;
 	}
 	
 });

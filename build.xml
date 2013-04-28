@@ -21,7 +21,7 @@
 			<filelist dir="${basedir}/src/core/" files="Class.js,RadClass.js"/>
 			<filelist dir="${basedir}/src/event/" files="Event.js, EventDispatcher.js, CollectionEvent.js, ChangeEvent.js, PropertyChangeEvent.js"/>
 			<filelist dir="${basedir}/src/model/" files="Model.js, CachableModel.js"/>
-			<filelist dir="${basedir}/src/collection/" files="Collection.js"/>
+			<filelist dir="${basedir}/src/collection/" files="Collection.js, FilteredCollection.js"/>
 			<!--
 			<fileset dir="${basedir}/src/util/">
 				 <include name="**/*.js"/>	

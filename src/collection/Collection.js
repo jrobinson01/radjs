@@ -19,19 +19,6 @@ pkg.Collection = rad.event.EventDispatcher.extend({
 	// otherwise test data.indexOf().
 	_key:null,
 	_table:{},//key/index lookup
-
-	//Events we dispatch (Going away! use real events instead)
-	/*
-	DATA_CHANGED: "sdk.arrayCollection.dataChanged",
-	
-	//sub-types for our events
-	ADD:"sdk.arrayCollection.dataChanged.add",//indicates that an item (or items) have been added
-	REMOVE:"sdk.arrayCollection.dataChanged.remove",//indicates that an item (or items) have been removed
-	REPLACE:"sdk.arrayCollection.dataChanged.replace",//indicates an item has been replaced
-	UPDATE:"sdk.arrayCollection.dataChanged.update",//indicates an item has been updated/changed
-	RESET:"sdk.arrayCollection.dataChanged.reset",//indicates that so much has changed, that a complete reset is necessary
-	SORTED:"sdk.arrayCollection.dataChanged.sorted",//indicates that the data has been sorted
-	*/
 	
 	init:function(d, key) {
 		this._super();
@@ -41,8 +28,6 @@ pkg.Collection = rad.event.EventDispatcher.extend({
 
 		this.sorts = [];
 		this.autoSort = false;
-		this._uniqueID = 0;
-		this._rebuilding = false;
 		this._table = {};
 		
 		//need to check to make sure d is an array!
@@ -79,18 +64,18 @@ pkg.Collection = rad.event.EventDispatcher.extend({
 				}
 			}
 		}
-		this.log("item is unique. adding:", item);
+		//this.log("item is unique. adding:", item);
 		//if we get here, the item is unique and can be added.
 		this.data.push(item);
 		//if we have a key, store this item's index in our table.
 		if(this._key !== null) {
-			//this.log("adding item:", this._key, item[this._key]);
+			this.log("adding item:", this._key, item[this._key]);
 			this._table[item[this._key]] = this.data.length - 1;
 		}
 		//this.log("item added. dispatching ADD change...");
 		this._dispatchChange("add", item, this.data.length - 1);
 		
-		// listen for a change event on the vo itself
+		// listen for a change event on the model itself
 		if ( item instanceof rad.model.Model) {
 			item.removeListener("Change", this._onItemChanged, this);
 			item.addListener("Change", this._onItemChanged, this);
@@ -115,29 +100,6 @@ pkg.Collection = rad.event.EventDispatcher.extend({
 		}
 	},
 	
-	//JR: I don't see how addItemAt ever worked??
-	//It doesn't appear to ever get called, and since it's a
-	// pain in the nads to implement, I'm going to go ahead
-	// and deprecate it.
-	/*
-	addItemAt:function(item, index) {
-		
-		var b = this.data.slice(index, this.data.length);
-		
-		b.push(item);
-		if(this._key !== null) {
-			if(this._table[item[this._key]] === undefined) {
-				//TODO: loop through all of our data? and fix the goddamn table..
-				this._table[item[this._key]] = b.length() - 1;
-			} else{
-				this._table[item[this._key]] = 
-			}
-		}
-		
-		this.data.concat(b);
-		this._dispatchChange(this.ADD, item, index);
-	},
-	*/
 	removeItemAt:function(index) {
 		//this.log(this, "ac removeItemAt", index);
 		var item = this.data[index];
@@ -204,7 +166,7 @@ pkg.Collection = rad.event.EventDispatcher.extend({
 			this._table = {};
 		}
 		
-		// loop over and unbind the change events if they are VOs
+		// loop over and unbind the change events if they are Models
 		for ( var i = 0; i < this.data.length ; i++ ) {
 			var item = this.data[i];
 			
@@ -217,7 +179,7 @@ pkg.Collection = rad.event.EventDispatcher.extend({
 		//set our data to the array passed in
 		this.data = a;
 		
-		// loop over and bind the change events if they are VOs
+		// loop over and bind the change events if they are Models
 		for ( var j = 0; j < this.data.length ; j++ ) {
 			var item = this.data[j];
 			
@@ -263,7 +225,18 @@ pkg.Collection = rad.event.EventDispatcher.extend({
 	
 	clone:function() {
 		//TODO: Deep copy the array and add a clone() method to the base VO class, or UPClass?
-		return new UPArrayCollection(this.data.slice(0), this._key);
+		return new rad.collection.Collection(this.data.slice(0), this._key);
+	},
+	
+	//iterate over each item and call the function (in scope if provided)
+	each:function(fn, scope) {
+		for(var i=0; i<this.getLength(); i++) {
+			if(scope !== undefined && scope !== null) {
+			fn.apply(scope, this.getItemAt(i));
+			} else {
+				fn(this.getItemAt(i));
+			}
+		}
 	},
 	
 	addSortFunction:function(f, priority) {
@@ -282,7 +255,7 @@ pkg.Collection = rad.event.EventDispatcher.extend({
 	doSort:function() {
 		clearTimeout(this._sortInterval);
 		var t = this;
-		//JR: determine how long to delay based on length?
+		//JR: determine how long to delay based on length
 		var interval = this.getLength();
 		if(this.getLength() > 1000) {
 			interval = 1000;
@@ -337,7 +310,7 @@ pkg.Collection = rad.event.EventDispatcher.extend({
 	
 	_onItemChanged: function (event) {
 		this.log("_onItemChanged", event);
-		this._dispatchChange("update", event.model, this.indexOf(event.model));
+		this._dispatchChange("update", event.data, this.indexOf(event.data));
 	},
 	
 	//this pretty much goes away.. in favor of dispatching events
@@ -354,12 +327,7 @@ pkg.Collection = rad.event.EventDispatcher.extend({
 	},
 	
 	destroy:function() {
-		for(var i=0; i<this.data.length; i++) {
-			var item = this.data[i];
-			if ( item instanceof rad.model.Model ) {
-				item.removeListener("Change", this._onItemChanged, this);
-			}
-		}
+		this.removeAll();
 		this._super();
 	}
 	

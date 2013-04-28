@@ -1,6 +1,7 @@
 var pkg = rad.getPackage("model");
 
 pkg.CachableModel = pkg.Model.extend({
+	
 	_className:"CachableModel",
 	name:"CachableModel",
 	_expiration:null,//time in milliseconds before this model should expire.
