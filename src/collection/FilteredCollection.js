@@ -76,7 +76,7 @@ pkg.FilteredCollection = pkg.Collection.extend(/** @lends FilteredCollection.pro
 					//this._expression+=" item."+i+""
 					//this.log("regexp not supported yet in filterMap");
 					if(isModel) {
-						this._expression += " item."+i+".match("+filterMap[i]+") &&";
+						this._expression += " item.get('"+i+"').match("+filterMap[i]+") &&";
 					} else {
 						this._expression += " item."+i+".match("+filterMap[i]+") &&";
 					}

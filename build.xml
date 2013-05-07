@@ -22,6 +22,8 @@
 			<filelist dir="${basedir}/src/event/" files="Event.js, EventDispatcher.js, CollectionEvent.js, ChangeEvent.js, PropertyChangeEvent.js"/>
 			<filelist dir="${basedir}/src/model/" files="Model.js, CachableModel.js"/>
 			<filelist dir="${basedir}/src/collection/" files="Collection.js, FilteredCollection.js"/>
+			<filelist dir="${basedir}/src/factory/"	files="Factory.js"/>
+			
 			<!--
 			<fileset dir="${basedir}/src/util/">
 				 <include name="**/*.js"/>	
@@ -29,13 +31,13 @@
 			-->
 			<filelist dir="${basedir}/src/" files="close.js"/>
 		</concat>
-		<!-- 
-		<concat destfile="build/client/frodo.css">
-			<fileset dir="${basedir}/css">
-				 <include name="**/*.css"/>	
-			</fileset>
-		</concat>
-		-->
+		<!-- compress -->
+		<echo>Compressing...</echo>
+		<shellscript shell="bash" dir=".">
+			java -jar util/yuicompressor-2.4.2.jar build/client/rad.js --nomunge --charset UTF-8 --type js -o build/client/rad.min.js
+		</shellscript>
+		
+		
 	</target>
 	<!-- add node compile -->
 	<target name="compile_node" depends="compile_client">
