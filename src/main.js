@@ -14,8 +14,8 @@
 		 rad = scope.rad = {};
 	 }
 
-	var rad = {};
-	window.rad = rad;
+	//var rad = {};
+	//window.rad = rad;
 	rad.core = {};
 	rad.core.debug = true;//flag for debugging
 	//utility to create namespaced packages
