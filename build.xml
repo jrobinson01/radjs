@@ -13,10 +13,11 @@
 	</taskdef>
 	
 	<target name="compile_client">
+		<property file="build.properties"/>
 		
 		<echo>Compiling rad.js</echo>
 
-		<concat destfile="build/client/rad.js" outputencoding="UTF-8">
+		<concat destfile="build/rad.js" outputencoding="UTF-8">
 			<filelist dir="${basedir}/src/" files="main.js"/>
 			<filelist dir="${basedir}/src/core/" files="Class.js,RadClass.js"/>
 			<filelist dir="${basedir}/src/event/" files="Event.js, EventDispatcher.js, CollectionEvent.js, ChangeEvent.js, PropertyChangeEvent.js"/>
@@ -32,14 +33,22 @@
 			<filelist dir="${basedir}/src/" files="close.js"/>
 		</concat>
 		<!-- compress -->
-		<echo>Compressing...</echo>
-		<shellscript shell="bash" dir=".">
-			java -jar util/yuicompressor-2.4.2.jar build/client/rad.js --nomunge --charset UTF-8 --type js -o build/client/rad.min.js
-		</shellscript>
-		
+		<if>
+			<equals arg1="${COMPRESS}" arg2="false"/>
+				 <then>
+				 	<echo>Skipping compression...</echo>
+				</then>
+		 	<else>
+				<echo>Compressing...</echo>
+				<shellscript shell="bash" dir=".">
+					java -jar util/yuicompressor-2.4.2.jar build/rad.js --nomunge --charset UTF-8 --type js -o build/rad.min.js
+				</shellscript>
+			</else>
+		 </if>
 		
 	</target>
 	<!-- add node compile -->
+	<!-- this shouldn't be necessary. rad should work in either environment -->
 	<target name="compile_node" depends="compile_client">
 		<echo>Compiling Node</echo>
 		<concat destfile="build/node/radNode.js" outputencoding="UTF-8">

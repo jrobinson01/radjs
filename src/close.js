@@ -1,2 +1,2 @@
 
-})(window, undefined);//end the closure
+})();//end the closure

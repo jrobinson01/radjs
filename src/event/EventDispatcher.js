@@ -81,12 +81,11 @@ pkg.EventDispatcher = rad.core.RadClass.extend({
 					if(!event.isPropagationStopped()) {
 						var item = el[i];
 						var scope = (item.scope === undefined || item.scope === null) ? undefined : item.scope;
-						
 						//this allows for multiple arguments to be passed, not sure if that's good or bad, but I think, BAD.
 						//JSPerf the difference?
 						//el[i].handler.apply(el[i].scope, arguments);
 						//or
-						if(scope != undefined) {
+						if(scope !== undefined) {
 							item.handler.apply(scope, arguments);
 						} else{
 							//scope is nada, try handler directly.

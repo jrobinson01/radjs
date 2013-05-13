@@ -1,12 +1,21 @@
+
 /**
  * @author John Robinson
  * @description Closure to enclose the Rad library
  */
-(function(window, undefined) {
+(function() {
 
 	//create the rad and rad core namespace
-	var rad = {};
-	window.rad = rad;
+	var scope = this;
+	//if exports exists, we're running in node.
+	if(typeof exports !== 'undefined') {
+		 rad = exports;//Backbone does this, but I'm not sure what it actually does?
+	 } else {
+		 rad = scope.rad = {};
+	 }
+
+	//var rad = {};
+	//window.rad = rad;
 	rad.core = {};
 	rad.core.debug = true;//flag for debugging
 	//utility to create namespaced packages
@@ -182,30 +191,67 @@ pkg.EventDispatcher = rad.core.RadClass.extend({
 	
 	_className:"EventDispatcher",
 	_eventListeners:{},
+	_debug:true,
 	
 	init:function() {
 		this._super();
 		this._eventListeners={};
 	},
 	
+	//eventName can be a single string (ex: Collection.add, Change, etc)
+	//or a list of events (ex: "Collection.add Collection.remove")
 	addListener:function(eventName, handler, scope) {
-		if(this._eventListeners[eventName] == undefined) {
-			this._eventListeners[eventName] = [];
-		}
-		//deal with missing scope/handler here (especially handler)!?
-		this._eventListeners[eventName].push({scope:scope, handler:handler});
+		var names = this._parseEventName(eventName);
+		var n;
+		for(var i=0; i<names.length; i++) {
+			n = names[i];
+			//loop and add listeners for each name
+			if(this._eventListeners[n] == undefined) {
+				this._eventListeners[n] = [];
+			}
+			//deal with missing scope/handler here (especially handler)!?
+			this._eventListeners[n].push({scope:scope, handler:handler});
+			}
 		return this;
 	},
 	
+	
 	removeListener:function(eventName, handler, scope){
-		var el = this._eventListeners[eventName];
-		if( el !== undefined) { 
-			for(var i=0; i<el.length; i++) {
-				if(el[i].scope == scope && el[i].handler == handler) {
-					el.splice(i,1);
-					break;
+		
+		if(eventName === null || eventName === undefined) {
+			if(handler === null || handler === undefined) {
+				if(scope !== null && scope !== undefined) {
+					//if both eventName and handler are null but scope is not, remove ALL listeners
+					// for the scope object.
+					this.log("scope is not null, removing all listeners for scope:", scope, this._eventListeners);
+					for(var i in this._eventListeners) {
+						for(var a=this._eventListeners[i].length-1; a>=0; a--) {
+							
+							this.log("removing:", i, a, this._eventListeners[i][a].scope);
+							this.removeListener(i, this._eventListeners[i][a].handler, this._eventListeners[i][a].scope);
+						}
+					}
+					return this;
+				} else {
+					return this;//not much to do here
 				}
 			}
+		}
+		var names = this._parseEventName(eventName);
+		var n;
+		for(var i=0; i<names.length; i++) {
+			n = eventName[i];
+		if(n !== null && n !== undefined) {
+			var el = this._eventListeners[n];
+			if( el !== undefined) { 
+				for(var i=0; i<el.length; i++) {
+					if(el[i].scope == scope && el[i].handler == handler) {
+						el.splice(i,1);
+						break;
+					}
+				}
+			}
+		}
 		}
 		return this;
 	},
@@ -220,12 +266,11 @@ pkg.EventDispatcher = rad.core.RadClass.extend({
 					if(!event.isPropagationStopped()) {
 						var item = el[i];
 						var scope = (item.scope === undefined || item.scope === null) ? undefined : item.scope;
-						
 						//this allows for multiple arguments to be passed, not sure if that's good or bad, but I think, BAD.
 						//JSPerf the difference?
 						//el[i].handler.apply(el[i].scope, arguments);
 						//or
-						if(scope != undefined) {
+						if(scope !== undefined) {
 							item.handler.apply(scope, arguments);
 						} else{
 							//scope is nada, try handler directly.
@@ -237,11 +282,20 @@ pkg.EventDispatcher = rad.core.RadClass.extend({
 					}
 				}
 			}
-			//event.destroy();//egad. I wonder if events will get GC'd??
+			//event.destroy();//egad. this results in the event not being populated.
+			//TODO: investigate what cases would causes events to not get GC'd!
 			return this;
 		} else {
 			throw new Error("invalid event passed to _dispatch");
 		}
+	},
+	
+	_parseEventName:function(eventName) {
+		var names = [];
+		if(typeof eventName == "string") {
+			names = eventName.split(" ");
+		}
+		return names;
 	}
 	
 });var pkg = rad.getPackage("event");
@@ -276,11 +330,11 @@ pkg.ChangeEvent = pkg.Event.extend({
 	
 	_className:"ChangeEvent",
 	name:"Change",
-	model:null,
+	data:null,//the object that changed
 	
-	init:function(model) {
+	init:function(data) {
 		this._super();
-		this.model = model;
+		this.data = data;
 	}
 });var pkg = rad.getPackage("event");
 pkg.PropertyChangeEvent = pkg.Event.extend({
@@ -302,18 +356,20 @@ pkg.Model = rad.event.EventDispatcher.extend({
 	
 	_className:"Model",
 	name:"Model",
-	//_data:null,
 	
-	init:function(name) {
+	_data:null,
+	
+	init:function(name, defaults) {
+		this._data = defaults || {};
 		this.name = name;
 		//this._data = {};
 		this._super();
 	},
 	
 	set:function(key, value){
-		var tv = this[key];
+		var tv = this._data[key];
 		if(tv != value) {
-			this[key] = value;
+			this._data[key] = value;
 			//dispatch a unique event for this property
 			this._dispatch(new rad.event.PropertyChangeEvent(key, value, tv));
 			//dispatch a more generic event that doesn't take the property into account.
@@ -322,17 +378,18 @@ pkg.Model = rad.event.EventDispatcher.extend({
 	},
 	
 	get:function(key) {
-		return this[key];
+		return this._data[key];
 	},
 	
 	reset:function() {
-		//this._data = {};//ugh
+		this._data = {};//ugh?
 	}
 });
 
 var pkg = rad.getPackage("model");
 
 pkg.CachableModel = pkg.Model.extend({
+	
 	_className:"CachableModel",
 	name:"CachableModel",
 	_expiration:null,//time in milliseconds before this model should expire.
@@ -399,19 +456,6 @@ pkg.Collection = rad.event.EventDispatcher.extend({
 	// otherwise test data.indexOf().
 	_key:null,
 	_table:{},//key/index lookup
-
-	//Events we dispatch (Going away! use real events instead)
-	/*
-	DATA_CHANGED: "sdk.arrayCollection.dataChanged",
-	
-	//sub-types for our events
-	ADD:"sdk.arrayCollection.dataChanged.add",//indicates that an item (or items) have been added
-	REMOVE:"sdk.arrayCollection.dataChanged.remove",//indicates that an item (or items) have been removed
-	REPLACE:"sdk.arrayCollection.dataChanged.replace",//indicates an item has been replaced
-	UPDATE:"sdk.arrayCollection.dataChanged.update",//indicates an item has been updated/changed
-	RESET:"sdk.arrayCollection.dataChanged.reset",//indicates that so much has changed, that a complete reset is necessary
-	SORTED:"sdk.arrayCollection.dataChanged.sorted",//indicates that the data has been sorted
-	*/
 	
 	init:function(d, key) {
 		this._super();
@@ -421,8 +465,6 @@ pkg.Collection = rad.event.EventDispatcher.extend({
 
 		this.sorts = [];
 		this.autoSort = false;
-		this._uniqueID = 0;
-		this._rebuilding = false;
 		this._table = {};
 		
 		//need to check to make sure d is an array!
@@ -459,18 +501,18 @@ pkg.Collection = rad.event.EventDispatcher.extend({
 				}
 			}
 		}
-		this.log("item is unique. adding:", item);
+		//this.log("item is unique. adding:", item);
 		//if we get here, the item is unique and can be added.
 		this.data.push(item);
 		//if we have a key, store this item's index in our table.
 		if(this._key !== null) {
-			//this.log("adding item:", this._key, item[this._key]);
+			this.log("adding item:", this._key, item[this._key]);
 			this._table[item[this._key]] = this.data.length - 1;
 		}
 		//this.log("item added. dispatching ADD change...");
 		this._dispatchChange("add", item, this.data.length - 1);
 		
-		// listen for a change event on the vo itself
+		// listen for a change event on the model itself
 		if ( item instanceof rad.model.Model) {
 			item.removeListener("Change", this._onItemChanged, this);
 			item.addListener("Change", this._onItemChanged, this);
@@ -495,29 +537,6 @@ pkg.Collection = rad.event.EventDispatcher.extend({
 		}
 	},
 	
-	//JR: I don't see how addItemAt ever worked??
-	//It doesn't appear to ever get called, and since it's a
-	// pain in the nads to implement, I'm going to go ahead
-	// and deprecate it.
-	/*
-	addItemAt:function(item, index) {
-		
-		var b = this.data.slice(index, this.data.length);
-		
-		b.push(item);
-		if(this._key !== null) {
-			if(this._table[item[this._key]] === undefined) {
-				//TODO: loop through all of our data? and fix the goddamn table..
-				this._table[item[this._key]] = b.length() - 1;
-			} else{
-				this._table[item[this._key]] = 
-			}
-		}
-		
-		this.data.concat(b);
-		this._dispatchChange(this.ADD, item, index);
-	},
-	*/
 	removeItemAt:function(index) {
 		//this.log(this, "ac removeItemAt", index);
 		var item = this.data[index];
@@ -584,7 +603,7 @@ pkg.Collection = rad.event.EventDispatcher.extend({
 			this._table = {};
 		}
 		
-		// loop over and unbind the change events if they are VOs
+		// loop over and unbind the change events if they are Models
 		for ( var i = 0; i < this.data.length ; i++ ) {
 			var item = this.data[i];
 			
@@ -597,7 +616,7 @@ pkg.Collection = rad.event.EventDispatcher.extend({
 		//set our data to the array passed in
 		this.data = a;
 		
-		// loop over and bind the change events if they are VOs
+		// loop over and bind the change events if they are Models
 		for ( var j = 0; j < this.data.length ; j++ ) {
 			var item = this.data[j];
 			
@@ -643,7 +662,18 @@ pkg.Collection = rad.event.EventDispatcher.extend({
 	
 	clone:function() {
 		//TODO: Deep copy the array and add a clone() method to the base VO class, or UPClass?
-		return new UPArrayCollection(this.data.slice(0), this._key);
+		return new rad.collection.Collection(this.data.slice(0), this._key);
+	},
+	
+	//iterate over each item and call the function (in scope if provided)
+	each:function(fn, scope) {
+		for(var i=0; i<this.getLength(); i++) {
+			if(scope !== undefined && scope !== null) {
+			fn.apply(scope, this.getItemAt(i));
+			} else {
+				fn(this.getItemAt(i));
+			}
+		}
 	},
 	
 	addSortFunction:function(f, priority) {
@@ -662,7 +692,7 @@ pkg.Collection = rad.event.EventDispatcher.extend({
 	doSort:function() {
 		clearTimeout(this._sortInterval);
 		var t = this;
-		//JR: determine how long to delay based on length?
+		//JR: determine how long to delay based on length
 		var interval = this.getLength();
 		if(this.getLength() > 1000) {
 			interval = 1000;
@@ -717,7 +747,7 @@ pkg.Collection = rad.event.EventDispatcher.extend({
 	
 	_onItemChanged: function (event) {
 		this.log("_onItemChanged", event);
-		this._dispatchChange("update", event.model, this.indexOf(event.model));
+		this._dispatchChange("update", event.data, this.indexOf(event.data));
 	},
 	
 	//this pretty much goes away.. in favor of dispatching events
@@ -734,15 +764,280 @@ pkg.Collection = rad.event.EventDispatcher.extend({
 	},
 	
 	destroy:function() {
-		for(var i=0; i<this.data.length; i++) {
-			var item = this.data[i];
-			if ( item instanceof rad.model.Model ) {
-				item.removeListener("Change", this._onItemChanged, this);
-			}
-		}
+		this.removeAll();
 		this._super();
 	}
 	
 });
+/**
+ * @name FilteredCollection
+ */
 
-})(window, undefined);//end the closure
+var pkg = rad.getPackage("collection");
+pkg.FilteredCollection = pkg.Collection.extend(/** @lends FilteredCollection.prototype **/{
+	
+	_className:"FilteredCollection",
+	name:"FilteredCollection",
+	
+	_debug:false,
+	
+	expression:true,//the expression to use in our default filter Function
+	filterFunction:function(item) {return this.expression;},//default filter function
+	dp:null,//dataprovider (Collection instance)
+	_model:{},//
+	
+	init:function(dp, filterMap, model) {
+		
+		if(dp instanceof rad.collection.Collection) {
+			this._super([], dp._key);
+			this.dp = dp;
+			this._key = this.dp._key;//
+			//listen for ChangeEvent
+			//TODO: rework this to a) listen for add,remove,etc
+			// and separate out into distinct handlers for each
+			//this.dp.addListener("Change", this._onTargetChange, this);
+			this.dp.addListener("Collection.add", this._onTargetAdd, this);
+			this.dp.addListener("Collection.remove", this._onTargetRemove, this);
+			this.dp.addListener("Collection.update", this._onTargetUpdate, this);
+			this.dp.addListener("Collection.reset", this._onTargetReset, this);
+			
+		} else {
+			this.error("dataProvider supplied is not an ArrayCollection : ", arguments);
+			return;
+		}
+		
+		this._model = (model) || {};
+		this.setFilter(filterMap);
+	},
+	
+	//TODO: take into account generic objects OR models...
+	//OR drop support for generic objects and only support Models?
+	setFilter:function(filterMap) {
+		//this.log("setFilter called:", filterMap);
+		var shouldFilter = false;
+		var isModel = (this._model.constructor == rad.model.Model);
+		this.log("isModel?", isModel);
+		if(typeof filterMap == "function") {
+			//if a function is passed, use that for the filterfunction
+			this.filterFunction = filterMap;
+			shouldFilter = true;
+			
+		} else if(typeof filterMap == "string") {
+			
+			//if a string is passed, assume we want to compare it to each item directly.
+			this.filterFunction = function(item) {
+				if((String(item).indexOf(filterMap) > -1) || filterMap =="*"){
+					return true;
+				} return false;
+			};
+			shouldFilter = true;
+			
+		} else if (typeof filterMap == "object") {
+			
+			//filterMap is an object. loop through the properties
+			//of the object and create conditionals..?how do deal with ||?
+			//this.log("dealing with an object...")
+			this._expression = "";
+			shouldFilter = true;
+			
+			
+			for (var i in filterMap) {
+				
+				if (filterMap[i] instanceof RegExp) {
+					//this._expression+=" item."+i+""
+					//this.log("regexp not supported yet in filterMap");
+					if(isModel) {
+						this._expression += " item.get('"+i+"').match("+filterMap[i]+") &&";
+					} else {
+						this._expression += " item."+i+".match("+filterMap[i]+") &&";
+					}
+				} else if (typeof filterMap[i] == "string") {
+					//string, see if it exists
+					if(isModel) {
+						this._expression += "(item.get('"+i+"') !== undefined ) && (item.get('"+i+"') !== null) && ( item.get('"+i+"').indexOf( '"+filterMap[i]+"' ) > -1 ) &&";
+					} else {
+						this._expression += "(item."+i+" !== undefined ) && (item."+i+" !== null) && ( item."+i+".indexOf( '"+filterMap[i]+"' ) > -1 ) &&";
+					}
+				} else if ( typeof filterMap[i] == "number" || typeof filterMap[i] == "boolean") {
+					//numbers.direct comparison
+					if(isModel) {
+						this._expression += " ( item.get('"+i+"') == "+filterMap[i]+" ) &&";
+					} else {
+						this._expression += " ( item."+i+" == "+filterMap[i]+" ) &&";
+					}
+				} else if ( typeof filterMap[i] == "object" ) {
+				
+					//hmm...
+					//we need to use recursion to handle every nested object
+					//aka.. createExpFromObject(object);
+					//this.log("nested objects not supported in filterMap");
+				}
+			}
+			//strip off the trailing &&.
+			var sp = this._expression.substr(this._expression.lastIndexOf("&&")).trimRight();
+			if(sp == "&&") {
+				this._expression = this._expression.substr(0, this._expression.lastIndexOf("&&"));
+			}
+			//this.log("what's the expression?:", this._expression);
+			
+			this.filterFunction = function(item) {
+				if(item !== undefined) {
+				//this.log("testing item:", item, this._expression);
+					if(eval(this._expression)){
+						return true;
+					}
+				} else {
+					this.error(this, "item is undefined??", item);//item is undefined?
+					//console.trace();
+				}
+			
+				return false;
+			}
+		}
+		
+		
+		if(shouldFilter) {
+			//JR: figure out why I used this.dp.data directly here
+			// instead of using the collections methods? getLength(), getItemAt() etc?
+			for(var i=0; i<this.dp.data.length;i++) {
+				this._processItem(this.dp.data[i]);
+			}
+
+		}
+	},
+	
+	_processItem:function(item) {
+		this.log("processing an item:", item);
+		if( this.filterFunction(item)) {
+			this.log("item passes filter. adding:", item, this.expression, this.filterFunction);
+			this.addItem(item, true);
+		} else {
+			this.log("item does NOT pass filter:", item);
+			//no need to remove here, since we're processing our target data, and not our own data.
+			this.removeItem(item);
+		}
+	},
+	
+	//Override setItemAt
+	setItemAt:function(item, index) {
+		//this.log("setItemAt called:", item, index);
+		this.data[index] = item;
+		
+		if(this._key !== null) {
+			this._table[item[this._key]] = index;
+		}
+		//original dispatches an UPDATE event here.
+	},
+	
+	_onTargetAdd:function(event){
+		var newItem, existingIndex;
+		newItem = event.item;
+		existingIndex = this.indexOf(newItem);
+		if(existingIndex == -1 && this.filterFunction(newItem)) {
+			this.addItem(newItem);
+		}
+	},
+	
+	_onTargetRemove:function(event) {
+		this.removeItem(event.item);
+	},
+	
+	_onTargetUpdate:function(event) {
+		var newItem, existingItem;
+		newItem = event.item;
+		existingItem = this.getItem(newItem);
+		
+		if(this.filterFunction(newItem)) {
+			//item passes filter
+			//if it already exists, update, otherwise add.
+			if(existingItem !== undefined) {
+				if(newItem != existingItem) {
+					this.setItemAt(newItem, this.indexOf(existingItem));
+				}
+			} else {
+				this.addItem(newItem, true);
+			}
+		} else if(existingItem !== undefined) {
+			this.removeItem(existingItem);
+		}
+	},
+	
+	_onTargetReset:function(event) {
+		var i, len, item;
+		len = this.dp.getLength();
+		item = event.item;
+		//remove all items first
+		this.removeAll();
+		
+		for(i=len-1; i>=0; i--) {
+			item = this.dp.getItemAt(i);
+			if(this.filterFunction(item)) {
+				this.addItem(item, true);
+			}
+		}
+	},
+	
+	//
+	_onItemChanged: function (event) {
+		//
+		//this.log("ITEM CHANGED IN FILTERED AC:", event);
+		//JR: filteredAC's need to know more about this type of update event... but what do we actually need to know?
+		if(this.filterFunction(event.data)) {
+			//this._dispatchChange(this.ADD, event.context.data, this.indexOf(event.context.data));
+			this.addItem(event.data, true);
+		} else {
+			//this._dispatchChange(this.REMOVE, event.context.data, this.indexOf(event.context.data));
+			this.removeItem(event.data);
+		}
+		//dispatch an update event?
+		this._dispatchChange(this.UPDATE);
+	},
+	
+	
+	clearFilter:function() {
+		//reset our expression.
+		//TODO: test our data again to update?
+		this._expression = true;
+	},
+	
+	destroy:function() {
+		this.dp.addListener("Collection.add", this._onTargetAdd, this);
+		this.dp.addListener("Collection.remove", this._onTargetRemove, this);
+		this.dp.addListener("Collection.update", this._onTargetUpdate, this);
+		this.dp.addListener("Collection.reset", this._onTargetReset, this);
+		this._super();
+	}
+});var pkg = rad.getPackage("factory");
+
+pkg.Factory = rad.core.RadClass.extend({
+	
+	className:"Factory",
+	name:"Factory",
+	_debug:true,
+	
+	_product:null,//Class reference
+	_key:null,//unique key for singletons
+	_products:null,//Collection
+	
+	init:function(product, key ){
+		this._product = (product instanceof rad.core.RadClass) ? product : Object;
+		this._key = key || null;
+		this._products = new rad.collection.Collection([], this._key);
+		this._super();
+	},
+	
+	get:function(id) {
+		//build our keyed object...
+		var oKey = {};
+		oKey[this._key] = id;
+		var instance = this._products.getItem(oKey);
+		if(instance === undefined) {
+			instance = new this._product(id);
+			this._products.addItem(instance);
+		}
+		return instance;
+	}
+
+});
+
+})();//end the closure

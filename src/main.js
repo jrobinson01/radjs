@@ -3,10 +3,10 @@
  * @author John Robinson
  * @description Closure to enclose the Rad library
  */
-(function(scope, undefined) {
+(function() {
 
 	//create the rad and rad core namespace
-	
+	var scope = this;
 	//if exports exists, we're running in node.
 	if(typeof exports !== 'undefined') {
 		 rad = exports;//Backbone does this, but I'm not sure what it actually does?
