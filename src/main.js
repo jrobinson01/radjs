@@ -9,7 +9,7 @@
 	var scope = this;
 	//if exports exists, we're running in node.
 	if(typeof exports !== 'undefined') {
-		 rad = exports;//Backbone does this, but I'm not sure what it actually does?
+		 rad = exports;
 	 } else {
 		 rad = scope.rad = {};
 	 }
