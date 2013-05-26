@@ -44,7 +44,7 @@ pkg.Collection = rad.event.EventDispatcher.extend({
 		
 	},
 	
-	
+
 	//if unique, addItem will only add the item once
 	// TODO: adjust to use addItemAt
 	addItem:function(item, unique) {

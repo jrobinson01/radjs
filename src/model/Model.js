@@ -31,6 +31,7 @@ pkg.Model = rad.event.EventDispatcher.extend({
 	
 	reset:function() {
 		this._data = {};//ugh?
+		//this._dispatch(new rad.event.ChangeEvent(this),)
 	}
 });
 

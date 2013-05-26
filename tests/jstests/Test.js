@@ -44,10 +44,17 @@ pkg.Test = rad.core.RadClass.extend({
 	_run:function() {
 		//...
 	},
-	
+	//TODO: provide a better 'deep compare' function.
 	done:function() {
 		for(var i in this._asserts) {
-			if(this._asserts[i] != this._result[i]) {
+			if(typeof this._asserts[i] == "object") {
+				//need to do a deeper compare here...
+				for(var a in this._asserts[i]) {
+					if(this._asserts[i][a] !== this._result[i][a]) {
+						return;
+					}
+				}
+			} else if(this._asserts[i] != this._result[i]) {
 				this.fail(i, this._asserts[i], this._result[i]);
 				return;
 			}
@@ -62,5 +69,9 @@ pkg.Test = rad.core.RadClass.extend({
 	
 	fail:function(prop, assertProp, resultProp) {
 		this.error("test failed. property:", prop, "result value:",resultProp, "didn't match assert value:", assertProp);
+	},
+	
+	_deepCompare:function(a,b) {
+		//...
 	}
 });

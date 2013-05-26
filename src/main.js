@@ -1,23 +1,28 @@
 
 /**
  * @author John Robinson
- * @description Closure to enclose the Rad library
+ * @description provides scope for the Rad library
  */
-(function() {
 
-	//create the rad and rad core namespace
-	var scope = this;
+(function() {
+	
+	var rad, scope, orig;
+	
+	scope = this;
+	
+	orig = scope.rad;
+	
 	//if exports exists, we're running in node.
 	if(typeof exports !== 'undefined') {
 		 rad = exports;
 	 } else {
 		 rad = scope.rad = {};
 	 }
-
-	//var rad = {};
-	//window.rad = rad;
+	
+	//create the rad core namespace manually
 	rad.core = {};
 	rad.core.debug = true;//flag for debugging
+	
 	//utility to create namespaced packages
 	rad.getPackage = function(ns) {
 		var sp = String(ns).split(".");//example: 'event.arrayCollection'
@@ -33,9 +38,9 @@
 	
 	//avoid conflicts
 	rad.noConflicts = function(scope) {
-		scope.rad = window.rad;
-		delete window.rad;
+		scope.rad = orig;
+		return this;
 	};
 	
 	//include all class files (ANT)
-	//closure end is in close.js	
+	//end is in close.js	

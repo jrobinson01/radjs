@@ -1,23 +1,28 @@
 
 /**
  * @author John Robinson
- * @description Closure to enclose the Rad library
+ * @description provides scope for the Rad library
  */
-(function() {
 
-	//create the rad and rad core namespace
-	var scope = this;
+(function() {
+	
+	var rad, scope, orig;
+	
+	scope = this;
+	
+	orig = scope.rad;
+	
 	//if exports exists, we're running in node.
 	if(typeof exports !== 'undefined') {
-		 rad = exports;//Backbone does this, but I'm not sure what it actually does?
+		 rad = exports;
 	 } else {
 		 rad = scope.rad = {};
 	 }
-
-	//var rad = {};
-	//window.rad = rad;
+	
+	//create the rad core namespace manually
 	rad.core = {};
 	rad.core.debug = true;//flag for debugging
+	
 	//utility to create namespaced packages
 	rad.getPackage = function(ns) {
 		var sp = String(ns).split(".");//example: 'event.arrayCollection'
@@ -33,12 +38,12 @@
 	
 	//avoid conflicts
 	rad.noConflicts = function(scope) {
-		scope.rad = window.rad;
-		delete window.rad;
+		scope.rad = orig;
+		return this;
 	};
 	
 	//include all class files (ANT)
-	//closure end is in close.js	
+	//end is in close.js	
 /* Simple JavaScript Inheritance
  * By John Resig http://ejohn.org/
  * MIT Licensed.
@@ -122,6 +127,21 @@ pkg.RadClass = Class.extend({
 		this._uniqueId = Math.round(Math.random()*10000)+new Date().getTime();
 	},
 	
+	/** handy utility methods */
+	// returns true if the parameter is undefined
+	undef:function(o) {
+		if(typeof o === "undefined") {
+			return true;
+		}
+		return false;
+	},
+	
+	//returns true if this has the desired property
+	has:function(prop) {
+		return !this.undef(this[prop]);
+	},
+	
+	/** handy logging methods */
 	log:function(){
 		if(rad.core.debug && this._debug) {
 			if(console !== undefined && console.log) {
@@ -161,14 +181,14 @@ pkg.Event = rad.core.RadClass.extend({
 	_className:"Event",
 	name:"Event",
 	
-	_type:"event",
-	
+	type:undefined,
 	_stopped:false,
+	_ns:undefined,
 	
 	init:function(type) {
 		if(typeof type == "string") {
-			this._type = type;
-			this._ns = this.name+"."+this._type;
+			this.type = type;
+			this._ns = this.name+"."+this.type;
 		} else {
 			//no type, default to just this.name
 			this._ns = this.name;
@@ -217,41 +237,38 @@ pkg.EventDispatcher = rad.core.RadClass.extend({
 	
 	
 	removeListener:function(eventName, handler, scope){
-		
-		if(eventName === null || eventName === undefined) {
-			if(handler === null || handler === undefined) {
-				if(scope !== null && scope !== undefined) {
-					//if both eventName and handler are null but scope is not, remove ALL listeners
-					// for the scope object.
-					this.log("scope is not null, removing all listeners for scope:", scope, this._eventListeners);
-					for(var i in this._eventListeners) {
-						for(var a=this._eventListeners[i].length-1; a>=0; a--) {
-							
-							this.log("removing:", i, a, this._eventListeners[i][a].scope);
-							this.removeListener(i, this._eventListeners[i][a].handler, this._eventListeners[i][a].scope);
-						}
+		var i, a, j, e, names, n, el;
+		if(eventName === null && handler === null && scope !== null) {
+			//if both eventName and handler are null but scope is not, remove ALL listeners
+			// for the scope object.
+			this.log("scope is not null, removing all listeners for scope:", scope, this._eventListeners);
+			for(i in this._eventListeners) {
+				for( a=this._eventListeners[i].length-1; a>=0; a--) {
+					if(this._eventListeners[i][a].scope === scope) {
+						this.removeListener(i, this._eventListeners[i][a].handler, this._eventListeners[i][a].scope);
 					}
-					return this;
-				} else {
-					return this;//not much to do here
 				}
 			}
+			return this;
 		}
-		var names = this._parseEventName(eventName);
-		var n;
-		for(var i=0; i<names.length; i++) {
-			n = eventName[i];
-		if(n !== null && n !== undefined) {
-			var el = this._eventListeners[n];
-			if( el !== undefined) { 
-				for(var i=0; i<el.length; i++) {
-					if(el[i].scope == scope && el[i].handler == handler) {
-						el.splice(i,1);
+		
+		// a space-separated string of names can be passed.
+		// remove th handler for each event name passed.
+		names = this._parseEventName(eventName);
+		
+		for(var j=0; j<names.length; j++) {
+			n = names[j];
+			el = this._eventListeners[n];
+			if( !this.undef(el)) {
+				//reverse this loop!
+				e = el.length;
+				while(e--) {
+					if(el[e].scope == scope && el[e].handler == handler) {
+						el.splice(e,1);
 						break;
 					}
 				}
 			}
-		}
 		}
 		return this;
 	},
@@ -299,6 +316,7 @@ pkg.EventDispatcher = rad.core.RadClass.extend({
 	}
 	
 });var pkg = rad.getPackage("event");
+
 pkg.CollectionEvent = rad.event.Event.extend({
 	
 	_className:"CollectionEvent",
@@ -317,13 +335,11 @@ pkg.CollectionEvent = rad.event.Event.extend({
 	
 	init:function(type, i, m) {
 		this._super(type);
-		console.log("creating collection event:", type, i, m);
-		this.index = i;
-		this.item = m;
-		
+		this.index = (i !== undefined) ? i : -1;
+		this.item = (m !== undefined) ? m : {};
+		console.log("Dafuq?",this);
 	}
 });
-
 
 var pkg = rad.getPackage("event");
 pkg.ChangeEvent = pkg.Event.extend({
@@ -344,6 +360,8 @@ pkg.PropertyChangeEvent = pkg.Event.extend({
 	
 	newValue:undefined,
 	oldValue:undefined,
+	
+	//type is the name of the property that changed
 	
 	init:function(type, newValue, oldValue) {
 		this._super(type);
@@ -383,6 +401,7 @@ pkg.Model = rad.event.EventDispatcher.extend({
 	
 	reset:function() {
 		this._data = {};//ugh?
+		//this._dispatch(new rad.event.ChangeEvent(this),)
 	}
 });
 
@@ -481,7 +500,7 @@ pkg.Collection = rad.event.EventDispatcher.extend({
 		
 	},
 	
-	
+
 	//if unique, addItem will only add the item once
 	// TODO: adjust to use addItemAt
 	addItem:function(item, unique) {
@@ -771,6 +790,7 @@ pkg.Collection = rad.event.EventDispatcher.extend({
 });
 /**
  * @name FilteredCollection
+ * any way to use native Array.filter?
  */
 
 var pkg = rad.getPackage("collection");
@@ -779,7 +799,7 @@ pkg.FilteredCollection = pkg.Collection.extend(/** @lends FilteredCollection.pro
 	_className:"FilteredCollection",
 	name:"FilteredCollection",
 	
-	_debug:false,
+	_debug:true,
 	
 	expression:true,//the expression to use in our default filter Function
 	filterFunction:function(item) {return this.expression;},//default filter function
@@ -796,6 +816,7 @@ pkg.FilteredCollection = pkg.Collection.extend(/** @lends FilteredCollection.pro
 			//TODO: rework this to a) listen for add,remove,etc
 			// and separate out into distinct handlers for each
 			//this.dp.addListener("Change", this._onTargetChange, this);
+			//console.log("add?", rad.event.CollectionEvent);
 			this.dp.addListener("Collection.add", this._onTargetAdd, this);
 			this.dp.addListener("Collection.remove", this._onTargetRemove, this);
 			this.dp.addListener("Collection.update", this._onTargetUpdate, this);
@@ -979,17 +1000,13 @@ pkg.FilteredCollection = pkg.Collection.extend(/** @lends FilteredCollection.pro
 	
 	//
 	_onItemChanged: function (event) {
-		//
 		//this.log("ITEM CHANGED IN FILTERED AC:", event);
-		//JR: filteredAC's need to know more about this type of update event... but what do we actually need to know?
 		if(this.filterFunction(event.data)) {
-			//this._dispatchChange(this.ADD, event.context.data, this.indexOf(event.context.data));
 			this.addItem(event.data, true);
 		} else {
-			//this._dispatchChange(this.REMOVE, event.context.data, this.indexOf(event.context.data));
 			this.removeItem(event.data);
 		}
-		//dispatch an update event?
+		//dispatch an update event
 		this._dispatchChange(this.UPDATE);
 	},
 	
@@ -1001,10 +1018,10 @@ pkg.FilteredCollection = pkg.Collection.extend(/** @lends FilteredCollection.pro
 	},
 	
 	destroy:function() {
-		this.dp.addListener("Collection.add", this._onTargetAdd, this);
-		this.dp.addListener("Collection.remove", this._onTargetRemove, this);
-		this.dp.addListener("Collection.update", this._onTargetUpdate, this);
-		this.dp.addListener("Collection.reset", this._onTargetReset, this);
+		this.dp.removeListener("Collection.add", this._onTargetAdd, this);
+		this.dp.removeListener("Collection.remove", this._onTargetRemove, this);
+		this.dp.removeListener("Collection.update", this._onTargetUpdate, this);
+		this.dp.removeListener("Collection.reset", this._onTargetReset, this);
 		this._super();
 	}
 });var pkg = rad.getPackage("factory");

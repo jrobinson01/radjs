@@ -1,5 +1,6 @@
 /**
  * @name FilteredCollection
+ * any way to use native Array.filter?
  */
 
 var pkg = rad.getPackage("collection");
@@ -8,7 +9,7 @@ pkg.FilteredCollection = pkg.Collection.extend(/** @lends FilteredCollection.pro
 	_className:"FilteredCollection",
 	name:"FilteredCollection",
 	
-	_debug:false,
+	_debug:true,
 	
 	expression:true,//the expression to use in our default filter Function
 	filterFunction:function(item) {return this.expression;},//default filter function
@@ -25,6 +26,7 @@ pkg.FilteredCollection = pkg.Collection.extend(/** @lends FilteredCollection.pro
 			//TODO: rework this to a) listen for add,remove,etc
 			// and separate out into distinct handlers for each
 			//this.dp.addListener("Change", this._onTargetChange, this);
+			//console.log("add?", rad.event.CollectionEvent);
 			this.dp.addListener("Collection.add", this._onTargetAdd, this);
 			this.dp.addListener("Collection.remove", this._onTargetRemove, this);
 			this.dp.addListener("Collection.update", this._onTargetUpdate, this);
@@ -208,17 +210,13 @@ pkg.FilteredCollection = pkg.Collection.extend(/** @lends FilteredCollection.pro
 	
 	//
 	_onItemChanged: function (event) {
-		//
 		//this.log("ITEM CHANGED IN FILTERED AC:", event);
-		//JR: filteredAC's need to know more about this type of update event... but what do we actually need to know?
 		if(this.filterFunction(event.data)) {
-			//this._dispatchChange(this.ADD, event.context.data, this.indexOf(event.context.data));
 			this.addItem(event.data, true);
 		} else {
-			//this._dispatchChange(this.REMOVE, event.context.data, this.indexOf(event.context.data));
 			this.removeItem(event.data);
 		}
-		//dispatch an update event?
+		//dispatch an update event
 		this._dispatchChange(this.UPDATE);
 	},
 	
@@ -230,10 +228,10 @@ pkg.FilteredCollection = pkg.Collection.extend(/** @lends FilteredCollection.pro
 	},
 	
 	destroy:function() {
-		this.dp.addListener("Collection.add", this._onTargetAdd, this);
-		this.dp.addListener("Collection.remove", this._onTargetRemove, this);
-		this.dp.addListener("Collection.update", this._onTargetUpdate, this);
-		this.dp.addListener("Collection.reset", this._onTargetReset, this);
+		this.dp.removeListener("Collection.add", this._onTargetAdd, this);
+		this.dp.removeListener("Collection.remove", this._onTargetRemove, this);
+		this.dp.removeListener("Collection.update", this._onTargetUpdate, this);
+		this.dp.removeListener("Collection.reset", this._onTargetReset, this);
 		this._super();
 	}
 });

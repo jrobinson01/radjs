@@ -18,6 +18,21 @@ pkg.RadClass = Class.extend({
 		this._uniqueId = Math.round(Math.random()*10000)+new Date().getTime();
 	},
 	
+	/** handy utility methods */
+	// returns true if the parameter is undefined
+	undef:function(o) {
+		if(typeof o === "undefined") {
+			return true;
+		}
+		return false;
+	},
+	
+	//returns true if this has the desired property
+	has:function(prop) {
+		return !this.undef(this[prop]);
+	},
+	
+	/** handy logging methods */
 	log:function(){
 		if(rad.core.debug && this._debug) {
 			if(console !== undefined && console.log) {

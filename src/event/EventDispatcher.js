@@ -32,41 +32,38 @@ pkg.EventDispatcher = rad.core.RadClass.extend({
 	
 	
 	removeListener:function(eventName, handler, scope){
-		
-		if(eventName === null || eventName === undefined) {
-			if(handler === null || handler === undefined) {
-				if(scope !== null && scope !== undefined) {
-					//if both eventName and handler are null but scope is not, remove ALL listeners
-					// for the scope object.
-					this.log("scope is not null, removing all listeners for scope:", scope, this._eventListeners);
-					for(var i in this._eventListeners) {
-						for(var a=this._eventListeners[i].length-1; a>=0; a--) {
-							
-							this.log("removing:", i, a, this._eventListeners[i][a].scope);
-							this.removeListener(i, this._eventListeners[i][a].handler, this._eventListeners[i][a].scope);
-						}
+		var i, a, j, e, names, n, el;
+		if(eventName === null && handler === null && scope !== null) {
+			//if both eventName and handler are null but scope is not, remove ALL listeners
+			// for the scope object.
+			this.log("scope is not null, removing all listeners for scope:", scope, this._eventListeners);
+			for(i in this._eventListeners) {
+				for( a=this._eventListeners[i].length-1; a>=0; a--) {
+					if(this._eventListeners[i][a].scope === scope) {
+						this.removeListener(i, this._eventListeners[i][a].handler, this._eventListeners[i][a].scope);
 					}
-					return this;
-				} else {
-					return this;//not much to do here
 				}
 			}
+			return this;
 		}
-		var names = this._parseEventName(eventName);
-		var n;
-		for(var i=0; i<names.length; i++) {
-			n = eventName[i];
-		if(n !== null && n !== undefined) {
-			var el = this._eventListeners[n];
-			if( el !== undefined) { 
-				for(var i=0; i<el.length; i++) {
-					if(el[i].scope == scope && el[i].handler == handler) {
-						el.splice(i,1);
+		
+		// a space-separated string of names can be passed.
+		// remove th handler for each event name passed.
+		names = this._parseEventName(eventName);
+		
+		for(var j=0; j<names.length; j++) {
+			n = names[j];
+			el = this._eventListeners[n];
+			if( !this.undef(el)) {
+				//reverse this loop!
+				e = el.length;
+				while(e--) {
+					if(el[e].scope == scope && el[e].handler == handler) {
+						el.splice(e,1);
 						break;
 					}
 				}
 			}
-		}
 		}
 		return this;
 	},

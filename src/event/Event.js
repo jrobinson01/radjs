@@ -8,14 +8,14 @@ pkg.Event = rad.core.RadClass.extend({
 	_className:"Event",
 	name:"Event",
 	
-	_type:"event",
-	
+	type:undefined,
 	_stopped:false,
+	_ns:undefined,
 	
 	init:function(type) {
 		if(typeof type == "string") {
-			this._type = type;
-			this._ns = this.name+"."+this._type;
+			this.type = type;
+			this._ns = this.name+"."+this.type;
 		} else {
 			//no type, default to just this.name
 			this._ns = this.name;

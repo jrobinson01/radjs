@@ -22,7 +22,7 @@ var CachableModelTest = rad.util.test.Test.extend({
 	},
 	
 	onMyPropChange:function(event) {
-		this.log("onEvent", event._type);
+		this.log("onEvent", event.type);
 		this._result.oldValue = event.oldValue;
 		this._result.newValue = event.newValue;
 	}
